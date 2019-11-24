@@ -1,0 +1,158 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<script>
+// static
+var PLUGINS = {{ args.param['plugins'] | tojson }};
+var iconX = $.parseHTML('&times;').pop().data;
+
+// set left list and event
+$(function () {
+	var cls = 'list-group-item list-group-item-action plugin-list';
+	for (var i in PLUGINS) {
+		var name = PLUGINS[i];
+
+		$('<div/>')
+			.attr({ class: cls })
+			.text(name)
+			.appendTo(
+				$('.plugin-list-group')
+			)
+			.click(function () {
+				var name = this.innerHTML; // assign
+				add(name);
+			});
+	}
+
+	$('#reset').click(function () {
+		$('.plugin-added-group').empty();
+	});
+
+	$('#next').click(function () {
+		var plugins = $('.plugin-added');
+		var args = [];
+
+		for (var i = 0; i < plugins.length; i++) {
+			var plugin = $(plugins[i]);
+
+			var values = [];
+			var inputs = plugin.find('input');
+			for (var j = 0; j < inputs.length; j++) {
+				var value = $(inputs[j]).val();
+				values.push(value);
+			}
+
+			var data = plugin.find('td.plugin-name');
+			var name = $(data).text();
+			var dict = { name: name, args: values };
+
+			args.push(dict);
+		}
+	});
+});
+
+// add to right
+function add(name) {
+	var args = {{ args.param['args' ] | tojson }}[name];
+
+	$('<tr/>')
+		.attr({ class: 'plugin-added' })
+		.append(
+			$('<td/>')
+				.attr({ class: 'new-task-added plugin-name' })
+				.css({ 'font-weight': 'bold' })
+				.text(name)
+		)
+		.append(function () {
+			var col = $('<td/>').attr({ class: 'new-task-added' });
+
+			for (var i in args) {
+				col.append(
+					$('<div/>')
+						.attr({ class: 'input-group input-group-sm my-1' })
+						.append(
+							$('<div/>')
+								.attr({ class: 'input-group-prepend' })
+								.css({ 'width': '20%' })
+								.append(
+									$('<span/>')
+										.attr({ class: 'input-group-text parameter' })
+										.css({ 'width': '100%' })
+										.text(args[i])
+								)
+						)
+						.append(
+							$('<input/>')
+								.attr({ type: 'text', class: 'form-control parameter' })
+						)
+				)
+			}
+
+			return col;
+		})
+		.append(
+			$('<td/>')
+				.attr({ class: 'new-task-added' })
+				.append(
+					$('<button/>')
+						.attr({ type: 'button', class: 'close' })
+						.text(iconX)
+						.click(function () {
+							$(this).parent().parent().remove();
+
+							/* prevent to show modal */
+							return false;
+						}
+					)
+				)
+		)
+		.appendTo($('.plugin-added-group'));
+}
+
+// TODO: collect inputs
+</script>
+
+<div class="row mb-3">
+	<!-- plugin list -->
+	<div class="col-4">
+		<div class="input-group">
+			<div class="input-group-prepend">
+				<span class="input-group-text">Task Name</span>
+			</div>
+			<input type="text" class="form-control" id="task-name">
+		</div>
+	</div>
+</div>
+
+<br>
+
+<div class="row">
+	<!-- plugin list -->
+	<div class="col-5">
+		<h3>Plugin List</h3>
+		<div class="list-group plugin-list-group">
+		</div>
+	</div>
+
+	<!-- center -->
+	<div class="col-1 text-center new-task-arrow">
+		<i class="fas fa-angle-double-right"></i>
+	</div>
+
+	<!-- plugin added -->
+	<div class="col-5">
+		<h3>Set Plugin Parameters</h3>
+		<table class="table table-sm table-hover table-condensed">
+			<tbody class="plugin-added-group">
+			</tbody>
+		</table>
+	</div>
+
+	<!-- buttons -->
+	<div class="col-1 text-center new-task-arrow">
+		<button type="button" class="btn btn-outline-primary" id="next">Next</button>
+		<button type="button" class="btn btn-outline-secondary" id="reset">Reset</button>
+	</div>
+</div>
+
+{% endblock %}

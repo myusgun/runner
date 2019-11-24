@@ -1,0 +1,77 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<link href="{{ url_for('static', filename='libs/highlight/styles/github-gist.css') }}" rel="stylesheet">
+<script src="{{ url_for('static', filename='libs/highlight/highlight.pack.js') }}"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+/* important */
+$('body').scrollspy({ spy: 'scroll', target: '#navbar-how-to', offset: 0 });
+</script>
+
+<div class="row">
+	<div class="col-10">
+		<!-- usage -->
+		<h3 id="usage">Usage</h3>
+		<hr>
+		<div class="bq mb-3">
+			<ol>
+				<li>Example의 형식과 같이 Task를 작성</li>
+				<li>다음과 같이 Task 파일을 복사
+					<ol class="breadcrumb bg-light">
+						<li class="breadcrumb-item">&lt;workspace&gt;</li>
+						<li class="breadcrumb-item">&lt;<b>Task 이름</b>&gt;</li>
+						<li class="breadcrumb-item">
+							<div style="float: right">
+								&lt;<b>Task 이름</b>&gt;.py<br>
+								&lt;그외 파일&gt;<br>
+								&lt;그외 폴더(디렉터리)&gt;<br>
+							</div>
+						</li>
+					</ol>
+				</li>
+
+				<li><a href="/">Tasks 페이지</a>에서 &lt;Task 이름&gt;을 등록</li>
+				<li>추가된 Task 실행/중지/제거 할 수 있음</li>
+			</ol>
+		</div>
+
+		<div class="bq mb-3">
+			<ul>
+				<li>Task 업로드 기능 추가 예정</li>
+			</ul>
+		</div>
+
+		<br>
+
+		<!-- example -->
+		<h3 id="example">Example</h3>
+		<h5 id="example-task">Task</h5>
+		<hr>
+		<div class="bq mb-3">
+			<pre><code class="python">{{ args.param['task'] }}</code></pre>
+		</div>
+
+		<h5 id="example-plugin">Plugin</h5>
+		<hr>
+		<div class="bq mb-3">
+			<pre><code class="python">{{ args.param['plugin'] }}</code></pre>
+		</div>
+	</div>
+
+	<div class="col-2">
+		<nav id="navbar-how-to" class="navbar navbar-light bg-light navbar-how-to">
+			<nav class="nav nav-pills flex-column">
+				<a class="nav-link my-1" href="#usage">Usage</a>
+				<a class="nav-link my-1" href="#example">Example</a>
+				<nav class="nav nav-pills flex-column">
+					<a class="nav-link ml-3" href="#example-task">Task</a>
+					<a class="nav-link ml-3" href="#example-plugin">Plugin</a>
+				</nav>
+			</nav>
+		</nav>
+	</div>
+</div>
+
+{% endblock %}

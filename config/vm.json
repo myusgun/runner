@@ -1,0 +1,29 @@
+{
+	"cli-tool": "C:\\Program Files (x86)\\VMware\\VMware VIX\\vmrun.exe",
+	"max-clone": 10,
+	"path": {
+		"guest": "V:",
+		"clone": "V:"
+	},
+	"shared-folder": [
+		{
+			"name": "D",
+			"path": "D:\\",
+			"writable": true
+		}
+	],
+	"guest-list": {
+		"win7x64": {
+			"path": "fucking-korean-certificate\\fucking-korean-certificate.vmx",
+			"desc": "ms-win-7-x64",
+			"system": {
+				"is-windows": true,
+				"home": "C:",
+				"auth": {
+					"username": "qwerty",
+					"password": "1234"
+				}
+			}
+		}
+	}
+}

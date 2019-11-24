@@ -1,0 +1,69 @@
+<!DOCTYPE HTML>
+<html lang="ko">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+	<meta name="description" content="">
+	<meta name="author" content="">
+	<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
+	<title>R[un]NER</title>
+
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='libs/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='libs/DataTables/dataTables.bootstrap4.min.css') }}"/>
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='libs/font-awesome/css/solid.css') }}" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='libs/font-awesome/css/fontawesome.css') }}" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='layout.css') }}" rel="stylesheet">
+
+	<script type="text/javascript" src="{{ url_for('static', filename='libs/jquery/jquery-3.3.1.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url_for('static', filename='libs/bootstrap/js/bootstrap.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url_for('static', filename='libs/DataTables/jquery.dataTables.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url_for('static', filename='libs/DataTables/dataTables.bootstrap4.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url_for('static', filename='libs/ext/datatables.rowsGroup.js') }}"></script>
+	<script type="text/javascript" src="{{ url_for('static', filename='script.js') }}"></script>
+ 
+</head>
+
+<!-- http://getbootstrap.com/getting-started/#examples -->
+
+<body>
+
+<header>
+	<nav class="navbar navbar-expand-md fixed-top navbar-dark bg-dark">
+		<div class="container-fluid">
+			<a class="navbar-brand" href="/">
+				<i class="fas fa-terminal"></i> R [un] N E R
+			</a>
+
+			<div class="collapse navbar-collapse">
+				<ul class="navbar-nav ml-auto">
+					{% for page in args.pages %} <!-- for i in range(len(args['pages'])) -->
+					<li class="nav-item {{ 'active' if page.name == args.name else '' }}">
+						<a class="nav-link" href="{{ page.html }}"><i class="fas fa-{{ page.icon }}"></i> {{ page.name }}</a>
+					</li>
+					{% endfor %}
+				</ul>
+			</div>
+		</div>
+	</nav>
+</header>
+
+<main class="container">
+	<div class="page-header">
+		<h1 style="margin-bottom: 3rem;"><i class="fas fa-chevron-right"></i> {{ args.name }}</h1>
+	</div>
+
+	{% block content %}
+	{% endblock %}
+</main>
+
+<footer class="footer">
+	<div class="container">
+		<span class="text-muted">&#x24B8; unsigned.kr</span>
+	</div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+	"port": 80,
+	"log": {
+		"name": "service.log",
+		"level": "info"
+	},
+	"smtp": {
+		"ssl": false,
+		"host": "",
+		"port": 25,
+		"auth": {
+			"required": false,
+			"username": null,
+			"password": null
+		}
+	},
+	"task": {
+		"info": "_workspace/task.json",
+		"workspace": "_workspace",
+		"plugin": "_plugin"
+	},
+	"virtualization": {
+		"enable": false,
+		"config": "config/vm.json",
+		"backup": "__virt__"
+	},
+	"statistics": {
+		"info": "_workspace/statistics.json"
+	}
+}

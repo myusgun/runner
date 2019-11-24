@@ -1,0 +1,388 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<script>
+var FLAG_NOT_IN_PROGRESS = 0x01000000;
+var FLAG_IN_PROGRESS     = 0X02000000;
+
+var LABEL_TYPES = {
+	'NONE'        : 'dark',
+	'DONE'        : 'success',
+	'ERROR'       : 'danger',
+	'STOPPED'     : 'warning',
+	'DISCONNECTED': 'danger'
+};
+var RUNNING_STATES = ['READY', 'RUNNING', 'WAITING', 'CONTINUING', 'BACKING UP'];
+
+var mtime = '';
+var taskTable = null;
+
+function drawTable(data) {
+	if (!$.fn.DataTable.isDataTable('#taskTable')) {
+		taskTable = $('#taskTable').DataTable({
+			'order': [[0, 'desc']],
+//			'rowsGroup': [0]
+		});
+	}
+
+	taskTable.clear();
+
+	for (var key in data) {
+		var value = data[key];
+
+		for (var seq in value) {
+			var task      = key;
+			var platform  = value[seq]['platform'];
+			var repeat    = value[seq]['repeat'];
+			var regTime   = value[seq]['reg-time'];
+			var execTime  = value[seq]['exec-time'];
+			var stateFlag = value[seq]['state'];
+			var stateName = value[seq]['state-name'];
+			var restUrl   = '{0}/{1}'.format(task, seq);
+
+			var seqRepr      = $('<i/>').text(seq).prop('outerHTML');
+			var platformRepr = platform ? platform : 'None';
+			var execTimeRepr = execTime ? execTime : $('<i/>').text('Not yet').prop('outerHTML');
+
+			var repeatRepr = '';
+			if (repeat == null) {
+				repeatRepr = 'Once';
+			} else if (repeat == 'infinite') {
+				repeatRepr = 'Infinite';
+			} else if (isNumber(repeat)) {
+				repeatRepr = '{0} times'.format(repeat);
+			} else {
+				if (repeat.includes(':')) {
+					repeatRepr = 'Everyday ';
+				} else if (repeat.startsWith('every ')) {
+					repeat = repeat.replace('every ', '');
+					repeatRepr = 'Every ';
+				}
+
+				repeatRepr += repeat;
+			}
+
+			if ((stateFlag & FLAG_NOT_IN_PROGRESS) != 0) {
+				var stateLabel = LABEL_TYPES[stateName];
+
+				if (stateName == 'DISCONNECTED') {
+					var controlButton   = 'default';
+					var controlFunction = 'resetTask';
+					var controlAction   = 'RESET';
+				} else {
+					var controlButton   = 'primary';
+					var controlFunction = 'runTask';
+					var controlAction   = 'RUN';
+				}
+			} else if (RUNNING_STATES.includes(stateName)) { // user can stop task
+				var controlButton   = 'danger';
+				var controlFunction = 'stopTask';
+				var controlAction   = 'STOP';
+
+				if (stateName == 'READY' || stateName == 'WAITING') {
+					var stateLabel = 'info';
+				} else {
+					var stateLabel = 'primary';
+				}
+			} else {
+				var stateLabel      = 'primary';
+				var controlButton   = 'default';
+				// var controlFunction = 'processingTask';
+				var controlAction   = 'PREPARING';
+			}
+
+			// state
+			var cls = 'alert alert-{0} alert-condensed'.format(stateLabel);
+			var stateRepr = $('<span/>')
+								.attr({ class: cls })
+								.text(stateName)
+								.prop('outerHTML');
+
+			// control
+			var controlRepr = '';
+			if (controlAction != 'PREPARING') {
+				var cls = 'btn btn-sm btn-block btn-{0} btn-condensed {1}'.format(controlButton, controlFunction);
+				var controlRepr = $('<button/>')
+									.attr({ type: 'button', class: cls, name: restUrl })
+									.text(controlAction)
+									.prop('outerHTML');
+			}
+
+			// remove
+			var removeRepr = '';
+			if (controlAction != 'PREPARING') {
+				var cls = 'btn btn-sm btn-block btn-warning btn-condensed removeTask';
+				var removeRepr = $('<button/>')
+									.attr({ type: 'button', class: cls, name: restUrl })
+									.val(controlAction)
+									.text('REMOVE')
+									.prop('outerHTML');
+			}
+
+			var row = [
+				key,
+				seqRepr,
+				platformRepr,
+				repeatRepr,
+				regTime,
+				execTimeRepr,
+				stateRepr,
+				controlRepr,
+				removeRepr,
+			];
+
+			taskTable.row.add(row);
+		}
+	}
+
+	taskTable.draw();
+}
+
+// classType: { success, info, warning, danger } in bootstrap
+function fadeAlert(classType, title, msg) {
+	$('<div/>')
+		.attr({ class: 'alert alert-{0} alert-bottom fadeAlert'.format(classType), role: 'alert' })
+		.append(
+			$('<strong/>')
+				.css({ 'margin-right': '10px' })
+				.text(title)
+		)
+		.append(msg)
+		.appendTo(
+			$('body')
+		);
+
+	$('.fadeAlert').fadeIn().delay(2000).fadeOut({ complete: function () { $(this).remove(); } });
+}
+
+// util functions
+function isNumber(n) {
+	return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
+function getObject(obj) {
+	if ((typeof obj) !== 'undefined') {
+		return obj;
+	} else {
+		return {};
+	}
+}
+
+function queryAjax(obj1, obj2) {
+	obj1 = getObject(obj1);
+	obj2 = getObject(obj2);
+
+	var obj = $.extend(obj1, obj2);
+
+	$.ajax(obj);
+}
+
+function registerTask(task, given) {
+	var obj = {
+		url: '/api/' + task,
+		type: 'put',
+		dataType: 'json',
+		success: function (data) {
+			fadeAlert('success', 'OK', 'Registered as ' + data['seq']);
+		},
+		error: function (req, status, error) {
+			fadeAlert('danger', req.status, error);
+		}
+	};
+	queryAjax(obj, given);
+}
+
+function runTask(taskWithSeq, given) {
+	var obj = {
+		url: '/api/' + taskWithSeq + '/run',
+		type: 'post',
+		success: function (data) {
+			fadeAlert('success', 'OK', taskWithSeq.replace('/', '@') + ' was started');
+		},
+		error: function (req, status, error) {
+			fadeAlert('danger', req.status, error);
+		}
+	};
+	queryAjax(obj, given);
+}
+
+function stopTask(taskWithSeq, given) {
+	var obj = {
+		url: '/api/' + taskWithSeq + '/stop',
+		type: 'post',
+		success: function (data) {
+			fadeAlert('success', 'OK', taskWithSeq.replace('/', '@') + ' was stopped');
+		},
+		error: function (req, status, error) {
+			fadeAlert('danger', req.status, error);
+		}
+	};
+	queryAjax(obj, given);
+}
+
+function removeTask(taskWithSeq, given) {
+	var obj = {
+		url: '/api/' + taskWithSeq,
+		type: 'delete',
+		success: function (data) {
+			fadeAlert('success', 'OK', taskWithSeq.replace('/', '@') + ' was removed');
+		},
+		error: function (req, status, error) {
+			fadeAlert('danger', req.status, error);
+		}
+	};
+	queryAjax(obj, given);
+}
+
+function resetTask(taskWithSeq, given) {
+	var obj = {
+		url: '/api/' + taskWithSeq + '/reset',
+		type: 'post',
+		success: function (data) {
+			fadeAlert('success', 'OK', taskWithSeq.replace('/', '@') + ' was reset');
+		},
+		error: function (req, status, error) {
+			fadeAlert('danger', req.status, error);
+		}
+	};
+	queryAjax(obj, given);
+}
+
+function getAllTasks(given) {
+	var obj = {
+		url: '/api?tasks',
+		type: 'get',
+		dataType: 'json',
+		error: function (req, status, error) {
+			fadeAlert('warning', req.status, error);
+		}
+	};
+	queryAjax(obj, given);
+}
+
+function getTaskUpdated(given) {
+	var obj = {
+		url: '/api?mtime',
+		type: 'get',
+		dataType: 'text',
+		error: function (req, status, error) {
+			if (req.status == 0 && error == '')
+				fadeAlert('danger', 'ERROR', 'Server disconnected');
+			else
+				fadeAlert('warning', req.status, error);
+		}
+	};
+	queryAjax(obj, given);
+}
+
+function setEventListener() {
+	// register
+	$('.register').off().on('click', function () {
+		var task = $('#reg-task-name').val()
+		registerTask(task);
+	});
+
+	// run
+	$('.runTask').off().on('click', function () {
+		var task = this.name;
+		this.disabled = true;
+		runTask(task);
+	});
+
+	// stop
+	$('.stopTask').off().on('click', function () {
+		var task = this.name;
+		this.disabled = true;
+		stopTask(task, { async: true });
+	});
+
+	// remove
+	$('.removeTask').off().on('click', function () {
+		var task = this.name;
+		this.disabled = true;
+
+		var confirmed = confirm('Remove ' + task.replace('/', '@'));
+		if (!confirmed) {
+			return;
+		}
+
+		// if task is in progress, stop first
+		changedTo = this.value;
+		if (changedTo == 'STOP') {
+			stopTask(task, { async: false });
+		}
+
+		removeTask(task);
+	});
+
+	// reset
+	$('.resetTask').off().on('click', function () {
+		var task = this.name;
+		this.disabled = true;
+
+		var confirmed = confirm('Reset ' + task.replace('/', '@'));
+		if (!confirmed) {
+			return;
+		}
+
+		resetTask(task, { async: false });
+	});
+}
+
+var POLLING_INTERVAL_SECONDS = 1;
+
+$(function poll() {
+	getTaskUpdated({
+		success: function (data) {
+			if (mtime != data) {
+				getAllTasks({
+					success: function (data) {
+						drawTable(data);
+						setEventListener();
+					}
+				});
+
+				mtime = data;
+			}
+		},
+		complete: setTimeout(function () { poll(); }, POLLING_INTERVAL_SECONDS * 1000)
+	});
+});
+</script>
+
+<table class="table table-sm table-condensed table-condensed-y compact hover" id="taskTable">
+	<thead>
+	<tr>
+		<th>Name       </th>
+		<th>Seq.       </th>
+		<th>Virtualized</th>
+		<th>Scheduling </th>
+		<th>Reg. Time  </th>
+		<th>Exec. Time </th>
+		<th>State      </th>
+		<th>Control    </th>
+		<th>Remove     </th>
+	</tr>
+	</thead>
+		<!-- ajax -->
+	<tbody>
+
+	</tbody>
+</table>
+
+<hr>
+
+<div class="row">
+	<div class="col-6"> </div>
+	<div class="col-6">
+		<div class="input-group mb-3 reg-task-name">
+			<input type="text" class="form-control" id="reg-task-name" placeholder="Task Name" required autofocus>
+			<div class="input-group-append">
+				<button type="button" class="btn btn-outline-secondary register">Register Tasks</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+{% endblock %}
+
