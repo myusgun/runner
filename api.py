@@ -219,23 +219,22 @@ def download_task_file(name, remote, local=None):
 	if not os.path.isdir(dirname):
 		os.makedirs(dirname)
 
-	f = open(local, 'wb')
-
-	callback = None
-	if CallbackClasses.Download:
-		callback = CallbackClasses.Download(f, remote, size)
-
 	try:
-		if callback:
-			callback.prepare()
+		with open(local, 'wb') as f:
+			callback = None
+			if CallbackClasses.Download:
+				callback = CallbackClasses.Download(f, remote, size)
 
-		while written < size:
-			content = url_lib.read(BLOCK_SIZE)
-			written += len(content)
-			f.write(content)
+			if callback:
+				callback.prepare()
 
-		if callback:
-			callback.succeed()
+			while written < size:
+				content = url_lib.read(BLOCK_SIZE)
+				written += len(content)
+				f.write(content)
+
+			if callback:
+				callback.succeed()
 
 	except:
 		if callback:
@@ -245,10 +244,6 @@ def download_task_file(name, remote, local=None):
 			os.remove(local)
 
 		raise
-
-	finally:
-		if f:
-			f.close()
 
 # --------------------------------------------------------------
 # API
