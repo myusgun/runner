@@ -1,6 +1,4 @@
 bootstrap-4.1.1-dist
 DataTables-1.10.18
 fontawesome-free-5.1.0-web
-jquery-3.3.1.min
-jquery-ui-1.12.1
-https://github.com/ashl1/datatables-rowsgroup
+jquery-3.6.0

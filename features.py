@@ -3,6 +3,10 @@ import importlib
 import os
 import sys
 
+def getLocalIP():
+	import socket
+	return socket.gethostbyname(socket.getfqdn())
+
 def readScript(path):
 	with open(path, 'rb') as f:
 		return f.read().decode('utf-8')
@@ -46,7 +50,7 @@ def traverse(path, depth=None):
 
 	if isinstance(depth, int):
 		if depth == 0:
-			return None
+			return {}
 
 		depth -= 1
 
@@ -54,31 +58,10 @@ def traverse(path, depth=None):
 		fullpath = os.path.join(path, e)
 
 		if os.path.isdir(fullpath):
-			entries = traverse(fullpath, depth)
-			if entries:
-				dirs.update({e: entries})
+			dirs.update({e: traverse(fullpath, depth)})
 
 		elif os.path.isfile(fullpath):
 			files.append(e)
 
 	return {'dir': dirs, 'file': files}
 
-def zipDir(zipName, dirpath):
-	import zipstream
-	from flask import Response
-
-	z = zipstream.ZipFile(compression=zipstream.ZIP_DEFLATED)
-	for root, dirs, files in os.walk(dirpath):
-		for entry in dirs:
-			abspath = os.path.join(root, entry)
-			arcpath = abspath.replace(dirpath, '')
-			z.write(abspath, arcpath)
-		for entry in files:
-			abspath = os.path.join(root, entry)
-			arcpath = abspath.replace(dirpath, '')
-			z.write(abspath, arcpath)
-
-	resp = Response(z, mimetype='application/zip')
-	resp.headers['Content-Disposition'] = 'attachment; filename={0}'.format(zipName)
-
-	return resp

@@ -8,9 +8,6 @@ from flask import Response
 from flask import send_file
 from flask.templating import render_template
 
-FLASK   = object()
-GEVENT  = object()
-
 class FlaskR(Flask):
 	class LogLevel:
 		CRITICAL = 50
@@ -76,22 +73,42 @@ class FlaskR(Flask):
 	def request(self):
 		return request
 
+	@property
+	def session(self):
+		return session
+
 	def render(self, template_name_or_list, **context):
 		return render_template(template_name_or_list, **context)
 
 	def redirect(self, url):
 		return redirect(url)
 
-	def zipStream(self, zipName, path):
-		from util import ZipStream
+	def sendFile(self, path, as_attachment=True):
+		return send_file(path, as_attachment=as_attachment)
 
-		z = ZipStream(path)
+	def __addZipEntries(self, zipinstance, dirpath):
+		for root, dirs, files in os.walk(dirpath):
+			for entry in dirs:
+				abspath = os.path.join(root, entry)
+				arcpath = abspath.replace(dirpath, '')
+				zipinstance.write(abspath, arcpath)
+			for entry in files:
+				abspath = os.path.join(root, entry)
+				arcpath = abspath.replace(dirpath, '')
+				zipinstance.write(abspath, arcpath)
 
-		resp = Response(z, mimetype='application/zip')
+	def createZipStream(self, dirpath):
+		import zipstream
+
+		zs = zipstream.ZipFile(compression=zipstream.ZIP_DEFLATED)
+
+		self.__addZipEntries(zs, dirpath)
+
+		return zs
+
+	def zipStream(self, zips, zipName):
+		resp = Response(zips, mimetype='application/zip')
 		resp.headers['Content-Disposition'] = 'attachment; filename={0}'.format(zipName)
 
 		return resp
-
-	def sendFile(self, path, as_attachment=True):
-		return send_file(path, as_attachment=as_attachment)
 

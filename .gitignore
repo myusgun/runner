@@ -1,0 +1,5 @@
+﻿*.pyc
+_workspace
+*.log*
+.vs
+.vscode

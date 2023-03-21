@@ -365,19 +365,21 @@ class Lazy:
 
 		init.logger.info('lazy-autorun: checking tasks ...')
 		runner.checkAlive()
+		threading.Thread(target=self.checkAlive).start()
 
 		init.logger.info('lazy-autorun: executing autorun tasks ...')
 		runner.autorun()
+
+	def checkAlive(self):
+		while not self.event.isSet():
+			runner.checkAlive()
+			time.sleep(1)
 
 	def start(self):
 		threading.Thread(target=self.autorun).start()
 
 	def stop(self):
 		self.event.set()
-
-@app.route('/hi', methods=['GET'])
-def hi():
-	return app.zipStream('a.zip', os.path.abspath(os.path.join('a', 'vtx/1.0.20.7')))
 
 def main():
 	port = init.config['port']

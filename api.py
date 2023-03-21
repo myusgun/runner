@@ -219,26 +219,33 @@ def download_task_file(name, remote, local=None):
 	if not os.path.isdir(dirname):
 		os.makedirs(dirname)
 
+	f = open(local, 'wb')
+
+	callback = None
+	if CallbackClasses.Download:
+		callback = CallbackClasses.Download(f, remote, size)
+
 	try:
-		with open(local, 'wb') as f:
-			callback = None
-			if CallbackClasses.Download:
-				callback = CallbackClasses.Download(f, remote, size)
+		if callback:
+			callback.prepare()
 
-			if callback:
-				callback.prepare()
+		while written < size:
+			content = url_lib.read(BLOCK_SIZE)
+			written += len(content)
+			f.write(content)
 
-			while written < size:
-				content = url_lib.read(BLOCK_SIZE)
-				written += len(content)
-				f.write(content)
+		if callback:
+			callback.succeed()
 
-			if callback:
-				callback.succeed()
+		if f:
+			f.close()
 
 	except:
 		if callback:
 			callback.failed()
+
+		if f:
+			f.close()
 
 		if os.path.isfile(local):
 			os.remove(local)

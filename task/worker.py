@@ -23,7 +23,7 @@ from BaseHTTPServer import BaseHTTPRequestHandler
 import state
 
 class Environment:
-	ADDRESS = '192.168.0.34' # FIXME 'unsigned.kr'
+	ADDRESS = 'localhost'
 	PORT    = 80
 	EMAIL   = 'mailer@unsigned.kr'
 
@@ -61,6 +61,7 @@ class Worker:
 			self.statement  = state.NONE
 			self.released   = False
 			self.outFile    = None
+			self.errFile    = None
 			self.repeat     = 0
 
 			# lazy call
@@ -87,7 +88,7 @@ class Worker:
 					missingItems.remove(item)
 
 			# 'backup' is only for virtualization
-			if 'backup' in missingItems and not self.virtualization.isRequired:
+			if 'backup' in missingItems and not self.virtualization.required:
 				missingItems.remove('backup')
 
 			if missingItems:
@@ -108,7 +109,7 @@ class Worker:
 		try:
 			self.initAttributes()
 
-			if self.virtualization.isRequired:
+			if self.virtualization.required:
 				self.changeState(state.VIRTUALIZING)
 				self.virtualization.attempt()
 				self.changeState(state.VIRTUALIZED)
@@ -131,7 +132,7 @@ class Worker:
 	def do(self):
 		TASK_THREAD_JOIN_TIMEOUT = 3
 
-		if self.virtualization.isRequired:
+		if self.virtualization.required:
 			return
 
 		# register methods for threading
@@ -240,7 +241,7 @@ class Worker:
 		try:
 			self.setTaskProperties()
 
-			while self.isContinued():
+			while self.continued:
 				try:
 					if self.statement == state.ERROR:
 						self.changeState(state.WAITING)
@@ -308,12 +309,12 @@ class Worker:
 			self.virtualization.mountSharedFolder()
 			self.taskMgr.properties.set('mount', self.virtualization.getMountPath())
 
-		# redirect stdout and stderr to file in normal-mode
-		if not self.taskMgr.isStandalone:
-			outFileName  = '{0}.stdout'.format(self.taskMgr.name)
-			self.outFile = open(outFileName, 'wb+', 0)
-			sys.stdout   = self.outFile
-			sys.stderr   = self.outFile
+		outFileName  = '{0}.stdout'.format(self.taskMgr.name)
+		errFileName  = '{0}.stderr'.format(self.taskMgr.name)
+		self.outFile = open(outFileName, 'wb+', 0)
+		self.errFile = open(errFileName, 'wb+', 0)
+		sys.stdout   = self.outFile
+		sys.stderr   = self.errFile
 
 	def getStringIntervalAsSeconds(self, repeat):
 		regexTime  = re.compile(r'\d+:\d+')
@@ -353,7 +354,8 @@ class Worker:
 
 		return seconds
 
-	def isContinued(self):
+	@property
+	def continued(self):
 		properties = self.taskMgr.properties
 
 		# check end of repetition
@@ -390,7 +392,19 @@ class Worker:
 					return False
 
 		elif isinstance(repeat, (int, long)):
-			if repeat <= 0 or self.repeat >= repeat:
+			# infinite
+			if repeat < 0:
+				return True
+
+			# once
+			elif repeat == 0:
+				if self.repeat > 0:
+					return False
+				else:
+					pass # go on
+
+			# count
+			elif self.repeat >= repeat:
 				return False
 
 		self.repeat += 1
@@ -419,6 +433,8 @@ class Worker:
 
 			if self.outFile:
 				self.outFile.close()
+			if self.errFile:
+				self.errFile.close()
 
 			self.released = True
 
@@ -452,11 +468,11 @@ class IAttribute:
 	def setModule(self, module):
 		self.module = module
 
-	def get(self, attr):
+	def get(self, attr, default=None):
 		if self.has(attr):
 			return getattr(self.module, attr)
 		else:
-			return None
+			return default
 
 	def has(self, attr):
 		return hasattr(self.module, attr)
@@ -526,7 +542,7 @@ class TaskManager(IAttribute):
 		properties      = self.get('Property')
 		self.properties = Properties(properties)
 
-		plugins         = self.properties.get('plugins')
+		plugins         = self.properties.get('plugins', [])
 		self.plugins    = [TaskManager.Plugin(name) for name in plugins]
 
 		# get functions
@@ -643,7 +659,7 @@ class Logger:
 		self.addLogHandler(handler)
 
 	def addLogHandler(self, handler):
-		logFormat = '[%(asctime)-15s][%(lineno)04d][%(module)s][%(funcName)s] %(message)s'
+		logFormat = '[%(asctime)-15s][%(lineno)04d][%(module)s][%(funcName)s] {0}: %(message)s'.format(self.taskName)
 		formatter = logging.Formatter(logFormat)
 
 		handler.setFormatter(formatter)
@@ -818,7 +834,7 @@ class Messaging:
 
 			# request
 			self.logger.info('== REQUEST\n'
-							 '{0} {1}\n'.format(method, url))
+							 '{0} {1}\n{2}'.format(method, url, body))
 
 			failed = True
 			while failed:
@@ -850,7 +866,7 @@ class Messaging:
 class Json:
 	@staticmethod
 	def dump(dictData):
-		return json.dumps(dictData, sort_keys=True, indent=2)
+		return json.dumps(dictData, sort_keys=True, indent=2, encoding='latin1')
 
 	@staticmethod
 	def load(strData):
@@ -913,7 +929,7 @@ class Virtualization:
 		return Environment.HYPERVISOR.isGuest()
 
 	@property
-	def isRequired(self):
+	def required(self):
 		if self.taskMgr.isStandalone:
 			return False
 
@@ -1267,9 +1283,7 @@ class Process:
 		self.cmd = {k: v for k, v in locals().iteritems() if k != 'self'}
 		self.logger.info('execute: {0}'.format(self.cmd))
 
-		pipe = subprocess.PIPE
-
-		self.process = subprocess.Popen(cmd, stdout=pipe, stderr=pipe, shell=shell)
+		self.process = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr, shell=shell)
 
 		self.isTerminated = False
 

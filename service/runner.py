@@ -180,7 +180,7 @@ class Runner(IService):
 		return tasks
 
 	def isTaskInProgress(self, taskName, seq):
-		return self.get(taskName, seq, 'state') & state.FLAG_IN_PROGRESS != 0
+		return self.get(taskName, seq, 'state') == state.RUNNING
 
 	def pushMessage(self, taskName, seq, messageType, value):
 		# <type> parameter
@@ -347,7 +347,7 @@ class Runner(IService):
 		dummyObj = {}
 
 		for taskName, infos in self.tasks.iteritems():
-			for seq, _ in infos.iteritems():
+			for seq, _info in infos.iteritems():
 				statement = self.get(taskName, seq, 'state')
 
 				if not state.isInProgress(statement):
