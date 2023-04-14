@@ -103,7 +103,7 @@ DELETE_TASK_FILE    : ['DELETE', '/api/file/<task>'             ],
 }
 
 def get_url(key):
-	return URL[key]
+	return list(URL[key])
 
 def replace_task(url, name):
 	return url.replace('<task>', name)
