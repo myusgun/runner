@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 import threading
+import urllib.requst
 
 from iservice import IService
 from vmmgr import VirtualMachineManager
@@ -23,6 +24,7 @@ class Runner(IService):
 		self.infoFile  = self.init.config['task']['info']
 		self.workspace = os.path.abspath(self.init.config['task']['workspace'])
 		self.plugin    = os.path.abspath(self.init.config['task']['plugin'])
+		self.backupDir = self.init.config['virtualization']['backup']
 
 		self.tasks = {}
 		self.lock  = threading.Lock()
@@ -84,9 +86,11 @@ class Runner(IService):
 		if not os.path.isfile(task):
 			raise RuntimeError('register: [{0}] task script was not found'.format(taskName))
 
+		"""
 		# for multiple task, remove this and more consider seq.
 		if self.exists(taskName):
 			raise ValueError('task [{0}] is already registered'.format(taskName))
+		"""
 
 		if not self.exists(taskName):
 			self.tasks[taskName] = {}
@@ -310,6 +314,9 @@ class Runner(IService):
 				vm.close()
 
 	def backupFromVM(self, taskName, seq, path):
+		"""
+		# legacy with vixpy
+
 		self.vmmgr.check()
 
 		vm = None
@@ -330,6 +337,38 @@ class Runner(IService):
 		finally:
 			if vm:
 				vm.close()
+		"""
+		# <type> parameter
+		#  - 'http://<worker address>/backup/<path/to/want>': control message. handling in worker
+
+		self.checkRegistered(taskName, seq)
+
+		address = self.get(taskName, seq, 'address')
+		port    = self.get(taskName, seq, 'port')
+		url     = 'http://{0}:{1}/{2}'.format(address, port, path)
+
+		self.logger.debug('backup: download from {0}'.format(url))
+
+		try:
+			backupDir = os.path.join(self.workspace, taskName, self.backupDir)
+			if not os.path.isdir(backupDir):
+				os.makedirs(backupDir)
+
+			filename = os.path.basename(path)
+			local = os.path.join(backupDir, filename)
+
+			urllib.requst.urlretrieve(url, local)
+
+		except Exception as e:
+			# socket.error is now a child class of IOError
+			# disconnected ?
+			obj = {
+				'state': state.DISCONNECTED,
+				'err': 'disconnected ? (errno: {0})'.format(e.errno)
+			}
+			self.setAttributes(taskName, seq, obj)
+
+			raise
 
 	def autorun(self):
 		for taskName, infos in self.tasks.iteritems():

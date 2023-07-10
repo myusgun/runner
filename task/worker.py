@@ -8,7 +8,6 @@ import logging
 import logging.handlers
 import os
 import re
-import signal
 import socket
 import subprocess
 import sys
@@ -16,6 +15,7 @@ import threading
 import time
 import traceback
 import urllib2
+import urlparse
 
 from BaseHTTPServer import HTTPServer
 from BaseHTTPServer import BaseHTTPRequestHandler
@@ -326,18 +326,22 @@ class Worker:
 		# daily
 		matched = regexTime.match(repeat)
 		if matched:
-			def getTomorrow(dailyTime):
-				delta    = datetime.datetime.now() + datetime.timedelta(days=1)
-				tomorrow = '%4d-%02d-%02d %s:00' % (delta.year, delta.month, delta.day, dailyTime)
-
+			def getNext(dailyTime):
 				now      = datetime.datetime.now()
-				nextTime = datetime.datetime.strptime(tomorrow, '%Y-%m-%d %H:%M:%S')
+				today    = '%4d-%02d-%02d %s:00' % (now.year, now.month, now.day, dailyTime)
+				nextTime = datetime.datetime.strptime(today, '%Y-%m-%d %H:%M:%S')
+
+				if nextTime < now:
+					delta    = datetime.datetime.now() + datetime.timedelta(days=1)
+					tomorrow = '%4d-%02d-%02d %s:00' % (delta.year, delta.month, delta.day, dailyTime)
+					nextTime = datetime.datetime.strptime(tomorrow, '%Y-%m-%d %H:%M:%S')
+
 				interval = nextTime - now
 				seconds  = interval.total_seconds()
 
 				return seconds
 
-			seconds = getTomorrow(repeat)
+			seconds = getNext(repeat)
 
 		# every interval
 		matched = regexEvery.match(repeat)
@@ -808,6 +812,27 @@ class Messaging:
 			self.send_header('Content-type', 'application/json')
 			self.end_headers()
 			self.wfile.write(message)
+
+		def do_GET(self):
+			# /backup/<path/to/want>
+			path = urlparse.urlparse(self.path).path
+			split = path.split('/')[0]
+
+			if split[0] == 'backup':
+				path = os.path.abspath(os.path.sep.join(split[1:]))
+
+				with open(path, 'rb') as f:
+					self.send_response(200)
+					self.send_header('Content-type', 'application/zip')
+					self.end_headers()
+					while True:
+						data = f.read(4 * 1024)
+						if len(data) == 0:
+							break
+						self.wfile.write(data)
+
+			else:
+				return
 
 	# inner-class
 	class Client:
