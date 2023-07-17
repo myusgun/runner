@@ -448,6 +448,7 @@ class Worker:
 		statement = get('state')
 		if statement == state.STOP:
 			self.changeState(state.STOP)
+			self.event.awake()
 			raise Stop()
 
 	def emailException(self, e):
