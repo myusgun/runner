@@ -171,16 +171,14 @@ class VirtualMachineManager(IService):
 		# log file will not be copied
 		logFile = '{0}@{1}.log'.format(taskName, seq)
 
-		# copy files temporally
-		#  i.e., worker, state ...
-		temporallyCopied = []
+		# copy required files
 		for f in self.requiredFiles:
-			self.logger.debug('temporally copy: {0} => {1}'.format(f, localTask))
-			shutil.copy(f, localTask)
+			localPath  = os.path.abspath(f)
+			remotePath = self.convertPathLocalToRemote(localPath, localTask, remoteTask, sep)
 
-			base = os.path.basename(f)
-			path = os.path.join(localTask, base)
-			temporallyCopied.append(path)
+			# copy
+			self.logger.debug('{0} ==VM==> {1}'.format(localPath, remotePath))
+			vm.copyToGuest(localPath, remotePath)
 
 		# upload
 		for root, dirs, files in os.walk(localTask):
@@ -212,11 +210,6 @@ class VirtualMachineManager(IService):
 				# copy
 				self.logger.debug('{0} ==VM==> {1}'.format(localPath, remotePath))
 				vm.copyToGuest(localPath, remotePath)
-
-		# clean up files copied temporally
-		for path in temporallyCopied:
-			self.logger.debug('remove temporally copied file, {0}'.format(path))
-			os.remove(path)
 
 		# return uploaded path
 		return remoteTask
